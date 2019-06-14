@@ -6,10 +6,19 @@
 #include "PerplexedEnums.generated.h"
 
 UENUM(BlueprintType)		//"BlueprintType" is essential to include
-enum class EFloorPieceTypeEnum : uint8
+enum class EGameObjectGroup : uint8
 {
-	FPTE_MIN 	,
-	FPTE_Blue 	UMETA(DisplayName = "Blue"),
-	FPTE_Red 	UMETA(DisplayName = "Red"),
-	FPTE_MAX
+	GOG_MIN 	,
+	GOG_Blue 	UMETA(DisplayName = "Blue"),
+	GOG_Red 	UMETA(DisplayName = "Red"),
+	GOG_Purple 	UMETA(DisplayName = "Purple"),
+	GOG_MAX
+};
+
+
+
+class GOGEnumFunctionLibrary
+{
+public:
+	static EGameObjectGroup GetRandomEnum();
 };

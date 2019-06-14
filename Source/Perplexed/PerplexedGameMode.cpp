@@ -3,6 +3,9 @@
 #include "PerplexedGameMode.h"
 #include "PerplexedCharacter.h"
 #include "UObject/ConstructorHelpers.h"
+#include "BPImplementablesLibrary.h"
+#include "Kismet/GameplayStatics.h"
+#include "IncomingObject.h"
 
 APerplexedGameMode::APerplexedGameMode()
 {
@@ -12,4 +15,25 @@ APerplexedGameMode::APerplexedGameMode()
 	{
 		DefaultPawnClass = PlayerPawnBPClass.Class;
 	}
+}
+
+void APerplexedGameMode::HandlePlayerDeath(APerplexedCharacter* Player)
+{
+	if (!IsValid(Player))
+		return;
+	Player->SetActorLocation({ Player->GetActorLocation().X, 2500.f, 2000.f });
+}
+
+void APerplexedGameMode::StartGame()
+{
+	AIncomingObject::StartSpawningIncomingObjects(GetWorld());
+	StartPlayerCharacter();
+}
+
+void APerplexedGameMode::StartPlayerCharacter()
+{
+	APerplexedCharacter* Player = Cast<APerplexedCharacter>(UGameplayStatics::GetPlayerCharacter(this, 0));
+	if (!IsValid(Player))
+		return;
+	Player->EnableMovement();
 }

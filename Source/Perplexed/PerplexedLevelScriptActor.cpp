@@ -2,9 +2,6 @@
 
 #include "PerplexedLevelScriptActor.h"
 #include "FloorPiece.h"
-#include "Engine/World.h"
-
-int32 AFloorPiece::LastFloorXPosition;
 
 APerplexedLevelScriptActor::APerplexedLevelScriptActor()
 {
@@ -16,8 +13,7 @@ APerplexedLevelScriptActor::APerplexedLevelScriptActor()
 void APerplexedLevelScriptActor::BeginPlay()
 {
 	Super::BeginPlay();
-
-	SpawnAllFloorPieces();
+	AFloorPiece::SpawnAllFloorPieces(GetWorld());
 
 }
 
@@ -26,25 +22,5 @@ void APerplexedLevelScriptActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-}
-
-
-void APerplexedLevelScriptActor::SpawnAllFloorPieces()
-{
-	AFloorPiece::LastFloorXPosition = 0;
-	FVector SpawnLocation(AFloorPiece::LastFloorXPosition, 0.f, 0.f);
-
-	for (int32 cnt = 0; cnt < AFloorPiece::MaxNumberOfPieces; ++cnt)
-	{
-		GetWorld()->SpawnActor<AFloorPiece>(FloorPieceBPClass, SpawnLocation, FRotator::ZeroRotator);
-
-		SpawnLocation.Y = AFloorPiece::FloorSize / 2;
-		GetWorld()->SpawnActor<AFloorPiece>(FloorPieceBPClass, SpawnLocation, FRotator::ZeroRotator);
-
-		AFloorPiece::LastFloorXPosition += AFloorPiece::FloorSize/2;
-		SpawnLocation.X = AFloorPiece::LastFloorXPosition;
-		SpawnLocation.Y = 0;
-	}
-
-
+	AFloorPiece::ManageFloorPiecesPosition(GetWorld());
 }

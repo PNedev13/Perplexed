@@ -8,6 +8,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "PerplexedGameMode.h"
 
 //////////////////////////////////////////////////////////////////////////
 // APerplexedCharacter
@@ -134,4 +135,27 @@ void APerplexedCharacter::MoveRight(float Value)
 		const FVector Direction(0.f, 1.f, 0.f);
 		AddMovementInput(Direction, Value);
 	}
+}
+
+void APerplexedCharacter::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime); // Call parent class tick function  
+
+	if (GetActorLocation().Z < -1000.f)
+	{
+		APerplexedGameMode* GameMode = CastChecked<APerplexedGameMode>(GetWorld()->GetAuthGameMode());
+		// Not checking if GameMode is a nullptr as CastChecked asserts if the cast is unsuccessful
+		GameMode->HandlePlayerDeath(this);
+	}
+		
+}
+
+void APerplexedCharacter::EnableMovement()
+{
+	GetCharacterMovement()->SetMovementMode(EMovementMode::MOVE_Walking);
+}
+
+void APerplexedCharacter::DisableMovement()
+{
+	GetCharacterMovement()->DisableMovement();
 }
