@@ -1,3 +1,4 @@
+/Content/StarterContent/
 Binaries
 DerivedDataCache
 Intermediate
@@ -11,4 +12,4 @@ Saved
 *.sln
 *.suo
 *.xcodeproj
-*.xcworkspace./Content/StarterContent/*
+*.xcworkspace
