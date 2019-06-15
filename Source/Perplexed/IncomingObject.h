@@ -12,7 +12,10 @@ class PERPLEXED_API AIncomingObject : public AActor
 {
 	GENERATED_BODY()
 
-	//  The size of the object pool
+	// The interpolation speed
+	static float InterpSpeed;
+
+	// The size of the object pool
 	static uint8 MaxNumberOfObjects;
 
 	// Time between every incoming object spawn
@@ -21,11 +24,13 @@ class PERPLEXED_API AIncomingObject : public AActor
 	// Object's StaticMesh width
 	static const uint32 ObjectWidth;
 
+	static const FVector LaunchVelocityOnHit;
+
 	/* Pointer to the first created object of this class,
-	* holding class related (static) data
-	* Used to avoid having static attributes which can not be
-	* declared as UPROPERTY()
-	*/
+	 * holding class related (static) data
+	 * Used to avoid having static attributes which can not be
+	 * declared as UPROPERTY()
+	 */
 	static TWeakObjectPtr<AIncomingObject> DataHolderInstance;
 
 	// All objects placed in front of the player are
@@ -43,6 +48,9 @@ class PERPLEXED_API AIncomingObject : public AActor
 
 	// The X distance between the spawned object and the Player
 	static const float SpawnDistanceFromPlayer;
+
+	// The X distance between the player and the object's target moving point
+	static const float InterpolationDistance;
 
 	// The Z spawn position of the object
 	static const float SpawnZPosition;
@@ -64,19 +72,30 @@ class PERPLEXED_API AIncomingObject : public AActor
 	// Calculate the possible spawn locations on the Y axis
 	static void CalculateYSpawnLocations();
 
-	// Called on hit
-	UFUNCTION()
-	void OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, 
-		UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit);
+	/* 
+	 * Adds the object to the pool (inactive object's array)
+	 *
+	 * @param ActiveObjectsArrayIndex   The object's index in the ActiveIncomingObjects array
+	 */
+	void SetInactive(int32 ActiveObjectsArrayIndex);
 
-	// Called on overlap
-	UFUNCTION()
-	void OnOverlap(UPrimitiveComponent* OverlapComponent, AActor* OtherActor,
-		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool FromSweep, const FHitResult& SweepResult);
-
-	// Called when either a hit or an overlap occures
-	// Handles what happens to the player thereafter
+	/** Called when an overlap occures between the player
+	 * and the hit trigger volume attached to the object. (See BP)
+	 * Handles what happens to the player thereafter.
+	 **/ 
+	UFUNCTION(BlueprintCallable)
 	void HitPlayer(AActor* Player);
+
+	/*
+	 * Gets a random position from the available ones in the array
+	 */
+	static float GetRandomYSpawnPosition();
+
+	/*
+	* Sets a new random object group and updates the object's static mesh
+	*/
+	void RandomizeProperties();
+
 public:	
 	// Sets default values for this actor's properties
 	AIncomingObject();
@@ -97,6 +116,13 @@ public:
 	// Places a single incoming object in front of player
 	static void PlaceIncomingObject(UWorld* World);
 
+	// Enables or disables the actor's tick based on the object's group
 	UFUNCTION(BlueprintCallable)
 	static void ChangeObjectMovement(EGameObjectGroup CurrentActiveGroup);
+
+	/*
+	 * Relocates all objects away from track
+	 * Note : Does not stop them from spawning again
+	 */
+	static void RemoveAllObjectsFromTrack();
 };

@@ -21,6 +21,5 @@ void APerplexedLevelScriptActor::BeginPlay()
 void APerplexedLevelScriptActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-
 	AFloorPiece::ManageFloorPiecesPosition(GetWorld());
 }

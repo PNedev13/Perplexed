@@ -21,7 +21,9 @@ void APerplexedGameMode::HandlePlayerDeath(APerplexedCharacter* Player)
 {
 	if (!IsValid(Player))
 		return;
-	Player->SetActorLocation({ Player->GetActorLocation().X, 2500.f, 2000.f });
+
+	AIncomingObject::RemoveAllObjectsFromTrack();
+	Player->SetActorLocation({ Player->GetActorLocation().X, 2500.f, 100.f });
 }
 
 void APerplexedGameMode::StartGame()

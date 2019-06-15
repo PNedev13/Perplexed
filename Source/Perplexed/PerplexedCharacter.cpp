@@ -85,12 +85,12 @@ void APerplexedCharacter::OnResetVR()
 
 void APerplexedCharacter::TouchStarted(ETouchIndex::Type FingerIndex, FVector Location)
 {
-		Jump();
+	Jump();
 }
 
 void APerplexedCharacter::TouchStopped(ETouchIndex::Type FingerIndex, FVector Location)
 {
-		StopJumping();
+	StopJumping();
 }
 
 void APerplexedCharacter::TurnAtRate(float Rate)

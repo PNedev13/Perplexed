@@ -10,14 +10,18 @@
 #include "Components/StaticMeshComponent.h"
 #include "BPImplementablesLibrary.h"
 
+float AIncomingObject::InterpSpeed = 0.5f;
 uint8 AIncomingObject::MaxNumberOfObjects = 20;
 const float AIncomingObject::SpawnDistanceFromPlayer = 20000.f;
+const float AIncomingObject::InterpolationDistance = 20000.f;
 const float AIncomingObject::SpawnZPosition = 500.f;
 const float AIncomingObject::InactiveDistanceThreshold = 2000.f;
+const FVector AIncomingObject::LaunchVelocityOnHit = { -10000.f, 0.f, 300.f };
 const uint32 AIncomingObject::ObjectWidth = 1000;
 float AIncomingObject::TimeBetweenObjectSpawn = 0.2f;
 TWeakObjectPtr<AIncomingObject> AIncomingObject::DataHolderInstance;
 TArray<int32> AIncomingObject::AvailableYSpawnPositions;
+
 
 
 // Sets default values
@@ -35,14 +39,6 @@ void AIncomingObject::BeginPlay()
 	Super::BeginPlay();
 	SetActorTickEnabled(false);
 	
-	UStaticMeshComponent* comp = Cast<UStaticMeshComponent>(GetComponentByClass(UStaticMeshComponent::StaticClass()));
-	if (comp != nullptr)
-	{
-		comp->OnComponentHit.AddDynamic(this, &AIncomingObject::OnHit);
-		comp->OnComponentBeginOverlap.AddDynamic(this, &AIncomingObject::OnOverlap);
-	}
-
-	
 }
 
 // Called every frame
@@ -51,13 +47,13 @@ void AIncomingObject::Tick(float DeltaTime)
 	Super::Tick(DeltaTime);
 
 	// Move object
-	float XInterp = FMath::FInterpTo(GetActorLocation().X, InterpolationTargetX, DeltaTime, 0.5f);
+	float XInterp = FMath::FInterpTo(GetActorLocation().X, InterpolationTargetX, DeltaTime, InterpSpeed);
 	SetActorLocation({ XInterp, GetActorLocation().Y, GetActorLocation().Z }, true);
 }
 
 void AIncomingObject::StartSpawningIncomingObjects(UWorld* World)
 {
-	if (World == nullptr)
+	if (!IsValid(World))
 		return;
 
 	SpawnAllIncomingObjects(World);
@@ -87,7 +83,7 @@ void AIncomingObject::CalculateYSpawnLocations()
 void AIncomingObject::SpawnAllIncomingObjects(UWorld* World)
 {
 	APerplexedGameMode* GameMode = Cast<APerplexedGameMode>(World->GetAuthGameMode());
-	if (GameMode == nullptr)
+	if (!IsValid(GameMode))
 		return;
 	if (GameMode->GetIncomingObjectClasses().Num() == 0)
 		return;
@@ -107,12 +103,9 @@ void AIncomingObject::SpawnAllIncomingObjects(UWorld* World)
 
 void AIncomingObject::PlaceIncomingObject(UWorld* World)
 {
-	APerplexedGameMode* GameMode = Cast<APerplexedGameMode>(World->GetAuthGameMode());
 	APerplexedCharacter* PlayerCharacter = Cast<APerplexedCharacter>(UGameplayStatics::GetPlayerCharacter(World, 0));
 
-	if (GameMode == nullptr || PlayerCharacter == nullptr)
-		return;
-	if (!DataHolderInstance.IsValid())
+	if (PlayerCharacter == nullptr || !DataHolderInstance.IsValid())
 		return;
 	if (AvailableYSpawnPositions.Num() == 0)
 	{
@@ -121,41 +114,48 @@ void AIncomingObject::PlaceIncomingObject(UWorld* World)
 	}
 
 	int32 RandomIncomingObjectIndex = FMath::RandRange(0, DataHolderInstance->InactiveIncomingObjects.Num() - 1);
-	if (DataHolderInstance->InactiveIncomingObjects.IsValidIndex(RandomIncomingObjectIndex))
+	if (!DataHolderInstance->InactiveIncomingObjects.IsValidIndex(RandomIncomingObjectIndex))
+		return;
+
+	AIncomingObject* RandomIncomingObject = DataHolderInstance->InactiveIncomingObjects[RandomIncomingObjectIndex];
+	if (!IsValid(RandomIncomingObject))
+		return;
+
+	DataHolderInstance->InactiveIncomingObjects.RemoveAt(RandomIncomingObjectIndex, 1, false);
+	RandomIncomingObject->RandomizeProperties();
+	RandomIncomingObject->SetActorLocation({ PlayerCharacter->GetActorLocation().X + SpawnDistanceFromPlayer, GetRandomYSpawnPosition(), SpawnZPosition });
+	RandomIncomingObject->InterpolationTargetX = PlayerCharacter->GetActorLocation().X - InterpolationDistance;
+
+	DataHolderInstance->ActiveIncomingObjects.Add(RandomIncomingObject);
+}
+
+void AIncomingObject::RandomizeProperties()
+{
+	IncomingObjectGroup = GOGEnumFunctionLibrary::GetRandomEnum();
+	if (UBPImplementablesLibrary::Instance.IsValid())
+		UBPImplementablesLibrary::Instance->UpdateStaticMeshMaterial(this, IncomingObjectGroup);
+}
+
+float AIncomingObject::GetRandomYSpawnPosition()
+{
+	float RandomYSpawnPosition = 0.f;
+	int32 RandomArrayIndex = FMath::RandRange(0, AvailableYSpawnPositions.Num() - 1);
+	if (AvailableYSpawnPositions.IsValidIndex(RandomArrayIndex))
 	{
-		AIncomingObject* RandomIncomingObject = DataHolderInstance->InactiveIncomingObjects[RandomIncomingObjectIndex];
-		if (RandomIncomingObject == nullptr)
-			return;
-
-		if (AvailableYSpawnPositions.Num() == 0)
-			return;
-
-		DataHolderInstance->InactiveIncomingObjects.RemoveAt(RandomIncomingObjectIndex, 1, false);
-
-		RandomIncomingObject->IncomingObjectGroup = GOGEnumFunctionLibrary::GetRandomEnum();
-		if (UBPImplementablesLibrary::Instance.IsValid())
-			UBPImplementablesLibrary::Instance->UpdateStaticMeshMaterial(RandomIncomingObject, RandomIncomingObject->IncomingObjectGroup);
-
-
-		float RandomYSpawnPosition = 0.f;
-		int32 RandomArrayIndex = FMath::RandRange(0, AvailableYSpawnPositions.Num() - 1);
-		if (AvailableYSpawnPositions.IsValidIndex(RandomArrayIndex))
-		{
-			RandomYSpawnPosition = AvailableYSpawnPositions[RandomArrayIndex];
-			AvailableYSpawnPositions.RemoveAt(RandomArrayIndex, 1, false);
-		}
-
-		RandomIncomingObject->SetActorLocation({ PlayerCharacter->GetActorLocation().X + SpawnDistanceFromPlayer, RandomYSpawnPosition, SpawnZPosition });
-		RandomIncomingObject->InterpolationTargetX = PlayerCharacter->GetActorLocation().X - SpawnDistanceFromPlayer;
-
-		DataHolderInstance->ActiveIncomingObjects.Add(RandomIncomingObject);
+		RandomYSpawnPosition = AvailableYSpawnPositions[RandomArrayIndex];
+		AvailableYSpawnPositions.RemoveAt(RandomArrayIndex, 1, false);
 	}
+	return RandomYSpawnPosition;
 }
 
 void AIncomingObject::ChangeObjectMovement(EGameObjectGroup CurrentActiveGroup)
 {
 	if (!DataHolderInstance.IsValid())
 		return;
+
+	UObject* DHIObjectPointer = CastChecked<AIncomingObject>(DataHolderInstance);
+	UGameplayStatics::SetGlobalTimeDilation(DHIObjectPointer, 1.f);
+
 	for (auto IncomingObject : DataHolderInstance->ActiveIncomingObjects)
 	{
 		if (IncomingObject->IncomingObjectGroup == CurrentActiveGroup)
@@ -172,41 +172,29 @@ void AIncomingObject::CheckForInactiveObjects(float PlayerXPosition)
 	for (int32 index = 0; index < DataHolderInstance->ActiveIncomingObjects.Num(); ++index)
 	{
 		if (PlayerXPosition - DataHolderInstance->ActiveIncomingObjects[index]->GetActorLocation().X > InactiveDistanceThreshold)
-		{
-			AIncomingObject* TempObjPointer = DataHolderInstance->ActiveIncomingObjects[index];
-			TempObjPointer->SetActorTickEnabled(false);
-			DataHolderInstance->ActiveIncomingObjects.RemoveAt(index, 1, false);
-			AvailableYSpawnPositions.Emplace(TempObjPointer->GetActorLocation().Y);
-			DataHolderInstance->InactiveIncomingObjects.Add(TempObjPointer);
-		}
+			DataHolderInstance->ActiveIncomingObjects[index]->SetInactive(index);
 	}
 }
 
-void AIncomingObject::OnHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, 
-	UPrimitiveComponent* OtherComponent, FVector NormalImpulse, const FHitResult& Hit)
+void AIncomingObject::SetInactive(int32 ActiveObjectsArrayIndex)
 {
-	if (OtherActor == nullptr)
-		return;
-
-	// Do nothing if the player hits the side or back of the cube
-	if (GetActorLocation().X < OtherActor->GetActorLocation().X)
-		return;
-
-	HitPlayer(OtherActor);
+	SetActorTickEnabled(false);
+	DataHolderInstance->ActiveIncomingObjects.RemoveAt(ActiveObjectsArrayIndex, 1, false);
+	AvailableYSpawnPositions.Emplace(GetActorLocation().Y);
+	SetActorLocation({ 0.f, 0.f, 0.f });
+	DataHolderInstance->InactiveIncomingObjects.Add(this);
 }
-void AIncomingObject::OnOverlap(UPrimitiveComponent* OverlapComponent, AActor* OtherActor,
-	UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool FromSweep, const FHitResult& SweepResult)
+
+void AIncomingObject::RemoveAllObjectsFromTrack()
 {
-	if (OtherActor == nullptr)
+	if (!DataHolderInstance.IsValid())
 		return;
 
-	if (OtherActor->IsA(AIncomingObject::StaticClass()))
-	{
-		SetActorLocation({ 0.f,GetActorLocation().Y,0.f });
-		return;
-	}
+	for (int32 counter = 0; counter < DataHolderInstance->ActiveIncomingObjects.Num(); ++counter)
+		DataHolderInstance->ActiveIncomingObjects[counter]->SetActorLocation({ 0.f, DataHolderInstance->ActiveIncomingObjects[counter]->GetActorLocation().Y, 0.f });
 
-	HitPlayer(OtherActor);
+	for (int32 counter = 0; counter < DataHolderInstance->InactiveIncomingObjects.Num(); ++counter)
+		DataHolderInstance->InactiveIncomingObjects[counter]->SetActorLocation({ 0.f, DataHolderInstance->InactiveIncomingObjects[counter]->GetActorLocation().Y, 0.f });
 }
 
 void AIncomingObject::HitPlayer(AActor* Player)
@@ -218,5 +206,5 @@ void AIncomingObject::HitPlayer(AActor* Player)
 
 	SetActorTickEnabled(false);
 	SetActorLocation({ 0.f,GetActorLocation().Y,0.f });
-	PlayerCharacter->LaunchCharacter({ -10000.f, 0.f, 300.f }, true, false);
+	PlayerCharacter->LaunchCharacter(LaunchVelocityOnHit, true, false);
 }
